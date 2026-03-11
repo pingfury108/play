@@ -1,0 +1,11 @@
+[project]
+name = "play"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "flask>=3.0.0",
+    "zai-sdk>=0.2.0",
+    "python-dotenv>=1.0.0",
+]

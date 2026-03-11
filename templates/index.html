@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智谱 OCR 识别</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            background: white;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        .upload-area input {
+            display: none;
+        }
+        .preview {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 30px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .result h3 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .result-section {
+            margin-bottom: 20px;
+        }
+        .result-section h4 {
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .text-content {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.8;
+            font-size: 15px;
+            color: #333;
+        }
+        .layout-item {
+            background: #f0f7ff;
+            border-left: 3px solid #007bff;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 5px 5px 0;
+        }
+        .layout-item .label {
+            font-size: 12px;
+            color: #007bff;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .layout-item .content {
+            color: #333;
+            line-height: 1.6;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        .info-item .key {
+            color: #666;
+            font-size: 13px;
+        }
+        .info-item .value {
+            color: #333;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 5px;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
+        .paste-hint {
+            color: #007bff;
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+        .raw-json {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .raw-json h4 {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .raw-json h4::after {
+            content: '▼';
+            font-size: 10px;
+        }
+        .raw-json.collapsed h4::after {
+            content: '▶';
+        }
+        .raw-json.collapsed pre {
+            display: none;
+        }
+        .raw-json pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>智谱 OCR 图片识别</h1>
+    
+    <div class="upload-area" id="uploadArea">
+        <input type="file" id="fileInput" accept="image/*">
+        <p>点击、拖拽或粘贴图片到此处</p>
+        <p style="color: #999; font-size: 14px; margin-top: 10px;">支持 JPG、PNG、GIF、BMP、WebP 格式</p>
+        <p class="paste-hint">💡 提示：可以直接截图后按 Ctrl+V 粘贴</p>
+    </div>
+    
+    <div class="preview" id="preview"></div>
+    
+    <div style="text-align: center;">
+        <button class="btn" id="submitBtn" disabled>开始识别</button>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>正在识别中...</p>
+    </div>
+    
+    <div class="error" id="error"></div>
+    
+    <div class="result" id="result">
+        <h3>识别结果</h3>
+        
+        <div class="result-section" id="markdownSection" style="display: none;">
+            <h4>📄 Markdown 文本</h4>
+            <div class="text-content" id="markdownContent"></div>
+        </div>
+        
+        <div class="result-section" id="layoutSection" style="display: none;">
+            <h4>📐 版面分析</h4>
+            <div id="layoutContent"></div>
+        </div>
+        
+        <div class="result-section" id="infoSection" style="display: none;">
+            <h4>ℹ️ 识别信息</h4>
+            <div class="info-grid" id="infoContent"></div>
+        </div>
+        
+        <div class="raw-json collapsed" id="rawJsonSection">
+            <h4 onclick="toggleRawJson()">原始 JSON 数据（点击展开）</h4>
+            <pre id="rawJsonContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+        
+        let selectedFile = null;
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('请选择图片文件');
+                return;
+            }
+            
+            selectedFile = file;
+            error.classList.remove('show');
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.innerHTML = `<img src="${e.target.result}" alt="预览">`;
+                submitBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        submitBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            submitBtn.disabled = true;
+            loading.classList.add('show');
+            result.classList.remove('show');
+            error.classList.remove('show');
+            
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            
+            try {
+                const response = await fetch('/ocr', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResult(data.result);
+                    result.classList.add('show');
+                } else {
+                    showError(data.error || '识别失败');
+                }
+            } catch (err) {
+                showError('网络错误，请稍后重试');
+            } finally {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+            }
+        });
+        
+        function displayResult(result) {
+            // Markdown 文本
+            if (result.md_results) {
+                document.getElementById('markdownSection').style.display = 'block';
+                document.getElementById('markdownContent').textContent = result.md_results;
+            } else {
+                document.getElementById('markdownSection').style.display = 'none';
+            }
+            
+            // 版面分析
+            if (result.layout_details && result.layout_details.length > 0) {
+                document.getElementById('layoutSection').style.display = 'block';
+                const layoutContent = document.getElementById('layoutContent');
+                layoutContent.innerHTML = '';
+                
+                result.layout_details.forEach((page, pageIndex) => {
+                    page.forEach((item, itemIndex) => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'layout-item';
+                        itemDiv.innerHTML = `
+                            <div class="label">${item.label || item.native_label || '文本'} (第${pageIndex + 1}页)</div>
+                            <div class="content">${item.content || ''}</div>
+                        `;
+                        layoutContent.appendChild(itemDiv);
+                    });
+                });
+            } else {
+                document.getElementById('layoutSection').style.display = 'none';
+            }
+            
+            // 识别信息
+            const infoContent = document.getElementById('infoContent');
+            infoContent.innerHTML = '';
+            
+            const infoItems = [
+                { key: '模型', value: result.model || '-' },
+                { key: '页数', value: result.data_info?.num_pages || '-' },
+                { key: '图片尺寸', value: result.data_info?.pages?.[0] ? 
+                    `${result.data_info.pages[0].width} × ${result.data_info.pages[0].height}` : '-' },
+                { key: 'Prompt Tokens', value: result.usage?.prompt_tokens || '-' },
+                { key: 'Completion Tokens', value: result.usage?.completion_tokens || '-' },
+                { key: '总 Tokens', value: result.usage?.total_tokens || '-' },
+                { key: '请求 ID', value: result.request_id || '-' }
+            ];
+            
+            infoItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'info-item';
+                div.innerHTML = `
+                    <span class="key">${item.key}</span>
+                    <span class="value">${item.value}</span>
+                `;
+                infoContent.appendChild(div);
+            });
+            document.getElementById('infoSection').style.display = 'block';
+            
+            // 原始 JSON
+            document.getElementById('rawJsonContent').textContent = JSON.stringify(result, null, 2);
+        }
+        
+        function toggleRawJson() {
+            document.getElementById('rawJsonSection').classList.toggle('collapsed');
+        }
+        
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+        }
+        
+        // 粘贴图片支持
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            let imageItem = null;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    imageItem = items[i];
+                    break;
+                }
+            }
+            
+            if (imageItem) {
+                e.preventDefault();
+                const blob = imageItem.getAsFile();
+                const file = new File([blob], 'pasted-image.png', { type: blob.type });
+                handleFile(file);
+            }
+        });
+    </script>
+</body>
+</html>
