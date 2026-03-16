@@ -1,20 +1,9 @@
 import os
 import sys
-import base64
-import hashlib
-import hmac
-import json
-import io
-import wave
 import tempfile
-import asyncio
 import traceback
-from urllib.parse import urlencode
 from datetime import datetime
-from time import mktime
-from wsgiref.handlers import format_date_time
 
-import websockets
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -26,6 +15,27 @@ load_dotenv(env_path)
 
 app = Flask(__name__)
 CORS(app)
+
+# 导入 TTS 核心功能
+from tts_core import (
+    text_to_speech,
+    pcm_to_wav,
+    IFLYTEK_APPID,
+    IFLYTEK_API_KEY,
+    IFLYTEK_API_SECRET,
+)
+
+# 导入批量处理模块
+from batch_processor import (
+    create_task,
+    get_task_status,
+    start_task,
+    process_next_batch,
+    pause_task,
+    resume_task,
+    get_partial_zip,
+    get_final_zip,
+)
 
 IFLYTEK_APPID = os.environ.get("IFLYTEK_APPID", "")
 IFLYTEK_API_KEY = os.environ.get("IFLYTEK_API_KEY", "")
@@ -164,6 +174,11 @@ def index():
     return render_template("tts.html")
 
 
+@app.route("/batch")
+def batch_page():
+    return render_template("batch.html")
+
+
 @app.route("/tts", methods=["POST"])
 def tts():
     """TTS API 接口"""
@@ -205,6 +220,112 @@ def tts():
         error_detail = traceback.format_exc()
         print(f"[TTS ERROR] {error_detail}")
         return jsonify({"error": str(e), "detail": error_detail}), 500
+
+
+# ========== 批量处理 API ==========
+
+
+@app.route("/batch/create", methods=["POST"])
+def batch_create():
+    """创建批量处理任务"""
+    if "vocab_file" not in request.files or "examples_file" not in request.files:
+        return jsonify({"success": False, "error": "请上传两个 Excel 文件"}), 400
+
+    vocab_file = request.files["vocab_file"]
+    examples_file = request.files["examples_file"]
+    limit = request.form.get("limit", "")
+    limit = int(limit) if limit.strip() else None
+
+    if vocab_file.filename == "" or examples_file.filename == "":
+        return jsonify({"success": False, "error": "文件不能为空"}), 400
+
+    try:
+        # 保存上传的文件
+        upload_dir = os.path.join(BASE_DIR, "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        vocab_path = os.path.join(upload_dir, vocab_file.filename)
+        examples_path = os.path.join(upload_dir, examples_file.filename)
+
+        vocab_file.save(vocab_path)
+        examples_file.save(examples_path)
+
+        # 创建输出目录
+        output_dir = os.path.join(
+            BASE_DIR, "output", datetime.now().strftime("%Y%m%d_%H%M%S")
+        )
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 创建任务
+        task_id = create_task(vocab_path, examples_path, output_dir, limit)
+
+        return jsonify({"success": True, "task_id": task_id})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/batch/start/<task_id>", methods=["POST"])
+def batch_start(task_id):
+    """启动自动处理"""
+    if start_task(task_id):
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "任务不存在"}), 404
+
+
+@app.route("/batch/process/<task_id>", methods=["POST"])
+def batch_process(task_id):
+    """处理下一批（手动模式）"""
+    status = process_next_batch(task_id)
+    if status:
+        return jsonify({"success": True, "status": status})
+    return jsonify({"success": False, "error": "任务不存在"}), 404
+
+
+@app.route("/batch/status/<task_id>")
+def batch_status(task_id):
+    """获取任务状态"""
+    status = get_task_status(task_id)
+    if status:
+        return jsonify(status)
+    return jsonify({"error": "任务不存在"}), 404
+
+
+@app.route("/batch/pause/<task_id>", methods=["POST"])
+def batch_pause(task_id):
+    """暂停任务"""
+    if pause_task(task_id):
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "任务不存在"}), 404
+
+
+@app.route("/batch/resume/<task_id>", methods=["POST"])
+def batch_resume(task_id):
+    """恢复任务"""
+    if resume_task(task_id):
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "任务不存在"}), 404
+
+
+@app.route("/batch/download/<task_id>")
+def batch_download(task_id):
+    """下载结果"""
+    # 先尝试获取最终压缩包
+    zip_path = get_final_zip(task_id)
+
+    if not zip_path or not os.path.exists(zip_path):
+        # 如果没有最终包，获取部分包
+        zip_path = get_partial_zip(task_id)
+
+    if zip_path and os.path.exists(zip_path):
+        return send_file(
+            zip_path,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="vocabulary_audio.zip",
+        )
+
+    return jsonify({"error": "文件不存在"}), 404
 
 
 if __name__ == "__main__":

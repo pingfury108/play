@@ -50,3 +50,5 @@ Thumbs.db
 *.log
 
 tmp/
+tts_app/output/
+tts_app/uploads/
