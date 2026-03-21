@@ -28,6 +28,89 @@
             padding: 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        .provider-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .provider-bar label {
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+        .provider-bar select {
+            flex: 1;
+            min-width: 140px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        .provider-bar select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .provider-bar select:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+            color: #999;
+        }
+        .thinking-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+        .thinking-toggle label {
+            margin-bottom: 0;
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #ccc;
+            border-radius: 22px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: #007bff;
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(18px);
+        }
         .form-group {
             margin-bottom: 25px;
         }
@@ -226,27 +309,61 @@
             font-size: 48px;
             margin-bottom: 15px;
         }
+        .no-providers {
+            color: #856404;
+            background: #fff3cd;
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .no-providers.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <h1>语法语义检查</h1>
-    
+
     <div class="container">
+        <div class="no-providers" id="noProviders">
+            未检测到可用的 API 配置，请在 <code>.env</code> 文件中配置至少一个 API Key。
+        </div>
+
+        <div class="provider-bar">
+            <label>AI 提供商：</label>
+            <select id="providerSelect">
+                <option value="">加载中...</option>
+            </select>
+            <label>模型：</label>
+            <select id="modelSelect">
+                <option value="">请先选择提供商</option>
+            </select>
+            <div class="thinking-toggle">
+                <label for="thinkingToggle">思考模式</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="thinkingToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
         <div class="form-group">
             <label for="inputText">输入文本：</label>
             <textarea id="inputText" placeholder="请输入需要检查语法语义的文本..."></textarea>
             <div class="char-count" id="charCount">0 / 5000</div>
         </div>
-        
-        <button class="btn" id="checkBtn">开始检查</button>
-        
+
+        <button class="btn" id="checkBtn" disabled>开始检查</button>
+
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <p>正在检查中...</p>
         </div>
-        
+
         <div class="error" id="error"></div>
-        
+
         <div class="result" id="result">
             <h3>检查结果</h3>
             <div id="resultContent"></div>
@@ -261,11 +378,77 @@
         const error = document.getElementById('error');
         const result = document.getElementById('result');
         const resultContent = document.getElementById('resultContent');
-        
+        const providerSelect = document.getElementById('providerSelect');
+        const modelSelect = document.getElementById('modelSelect');
+        const thinkingToggle = document.getElementById('thinkingToggle');
+        const noProviders = document.getElementById('noProviders');
+
+        const PROVIDER_NAMES = {
+            deepseek: 'DeepSeek',
+            dashscope: '阿里云百炼',
+            ark: '火山云 Ark',
+        };
+
+        async function loadProviders() {
+            try {
+                const res = await fetch('/providers');
+                const data = await res.json();
+                const providers = data.providers || [];
+
+                providerSelect.innerHTML = '';
+
+                if (providers.length === 0) {
+                    noProviders.classList.add('show');
+                    providerSelect.innerHTML = '<option value="">无可用提供商</option>';
+                    return;
+                }
+
+                providers.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p;
+                    opt.textContent = PROVIDER_NAMES[p] || p;
+                    providerSelect.appendChild(opt);
+                });
+
+                await loadModels(providers[0]);
+            } catch (e) {
+                providerSelect.innerHTML = '<option value="">加载失败</option>';
+            }
+        }
+
+        async function loadModels(provider) {
+            if (!provider) return;
+            modelSelect.disabled = true;
+            modelSelect.innerHTML = '<option value="">加载中...</option>';
+
+            try {
+                const res = await fetch(`/models/${provider}`);
+                const data = await res.json();
+                const models = data.models || [];
+
+                modelSelect.innerHTML = '';
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.name;
+                    modelSelect.appendChild(opt);
+                });
+
+                modelSelect.disabled = false;
+                checkBtn.disabled = false;
+            } catch (e) {
+                modelSelect.innerHTML = '<option value="">加载失败</option>';
+            }
+        }
+
+        providerSelect.addEventListener('change', () => {
+            checkBtn.disabled = true;
+            loadModels(providerSelect.value);
+        });
+
         inputText.addEventListener('input', () => {
             const len = inputText.value.length;
             charCount.textContent = `${len} / 5000`;
-            
             charCount.classList.remove('warning', 'error');
             if (len > 4800) {
                 charCount.classList.add('error');
@@ -273,38 +456,38 @@
                 charCount.classList.add('warning');
             }
         });
-        
+
         checkBtn.addEventListener('click', async () => {
             const text = inputText.value.trim();
-            
+
             if (!text) {
                 showError('请输入文本内容');
                 return;
             }
-            
             if (text.length > 5000) {
                 showError('文本长度超过限制（最大 5000 字符）');
                 return;
             }
-            
+
             checkBtn.disabled = true;
             loading.classList.add('show');
             result.classList.remove('show');
             error.classList.remove('show');
-            
+
             try {
                 const response = await fetch('/check', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        text: text
+                        text,
+                        provider: providerSelect.value || null,
+                        model: modelSelect.value || null,
+                        thinking: thinkingToggle.checked,
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     displayResult(data.result);
                     result.classList.add('show');
@@ -318,47 +501,27 @@
                 checkBtn.disabled = false;
             }
         });
-        
-        function parseErrors(result) {
-            if (result.format === 'json' && result.data) {
-                return {
-                    errors: result.data.errors || [],
-                    optimizedText: result.data.optimized_text || ''
-                };
-            }
-            // 降级处理：如果是原始文本，直接返回空
-            return { errors: [], optimizedText: result.data || '' };
-        }
 
         function highlightErrors(originalText, errors) {
-            // 过滤掉空错误，按长度降序排序（先替换长的，避免短的覆盖）
             const sortedErrors = errors.filter(err => err.error_text).sort((a, b) => {
                 return b.error_text.length - a.error_text.length;
             });
 
-            // 创建替换标记，避免重复替换
+            // 两步走：先用标记替换，避免 HTML 转义干扰
             let markers = [];
             let processedText = originalText;
 
             sortedErrors.forEach((err, index) => {
                 const marker = `___ERROR_MARKER_${index}___`;
-                const regexPattern = escapeRegex(err.error_text);
-                const regex = new RegExp(regexPattern, 'g');
-
-                // 替换原文中的错误文本为标记
+                const regex = new RegExp(escapeRegex(err.error_text), 'g');
                 processedText = processedText.replace(regex, marker);
-
-                // 保存标记和对应的 HTML
                 markers.push({
-                    marker: marker,
+                    marker,
                     html: `<span class="error-highlight" data-reason="${escapeHtml(err.reason)}">${escapeHtml(err.error_text)}</span>`
                 });
             });
 
-            // 对处理后的文本进行 HTML 转义
             let html = escapeHtml(processedText);
-
-            // 将标记替换为实际的 HTML
             markers.forEach(({ marker, html: replacement }) => {
                 html = html.split(escapeHtml(marker)).join(replacement);
             });
@@ -377,7 +540,6 @@
         }
 
         function displayResult(result) {
-            // 处理 JSON 格式
             if (result.format === 'json' && result.data) {
                 const { has_error, errors, optimized_text } = result.data;
 
@@ -424,7 +586,7 @@
                 return;
             }
 
-            // 降级处理：显示原始文本
+            // 降级：显示原始文本
             resultContent.innerHTML = `
                 <div class="result-section">
                     <h4>📄 检查结果</h4>
@@ -432,11 +594,14 @@
                 </div>
             `;
         }
-        
+
         function showError(message) {
             error.textContent = message;
             error.classList.add('show');
         }
+
+        // 初始化
+        loadProviders();
     </script>
 </body>
 </html>
