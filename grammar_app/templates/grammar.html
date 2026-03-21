@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语法语义检查</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 15px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            resize: vertical;
+            font-family: inherit;
+            line-height: 1.6;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+        .char-count {
+            text-align: right;
+            color: #999;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .char-count.warning {
+            color: #ff9800;
+        }
+        .char-count.error {
+            color: #f44336;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 14px 50px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.3s;
+            display: block;
+            margin: 30px auto 0;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8d7da;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
+        .result {
+            margin-top: 30px;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .result h3 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+        }
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .result-section h4 {
+            color: #555;
+            margin-bottom: 12px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .result-content {
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error-highlight {
+            background: #ffebee;
+            color: #c62828;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border-bottom: 2px solid #ef5350;
+            cursor: help;
+            position: relative;
+            font-weight: 500;
+        }
+        .error-highlight:hover::after {
+            content: attr(data-reason);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #323232;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.6;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            width: 400px;
+            max-width: 90vw;
+            white-space: normal;
+            text-align: left;
+            word-wrap: break-word;
+        }
+        .suggestion-list {
+            margin-top: 10px;
+        }
+        .suggestion-item {
+            background: white;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 3px solid #28a745;
+        }
+        .suggestion-item .item-title {
+            font-weight: 600;
+            color: #28a745;
+            margin-bottom: 5px;
+        }
+        .suggestion-item .item-content {
+            color: #555;
+            line-height: 1.6;
+        }
+        .optimized-text {
+            background: white;
+            border: 2px solid #28a745;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .optimized-text h4 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        .optimized-text-content {
+            color: #333;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+        .empty-result {
+            text-align: center;
+            padding: 30px;
+            color: #28a745;
+            font-size: 16px;
+            background: #d4edda;
+            border-radius: 8px;
+        }
+        .empty-result .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>语法语义检查</h1>
+    
+    <div class="container">
+        <div class="form-group">
+            <label for="inputText">输入文本：</label>
+            <textarea id="inputText" placeholder="请输入需要检查语法语义的文本..."></textarea>
+            <div class="char-count" id="charCount">0 / 5000</div>
+        </div>
+        
+        <button class="btn" id="checkBtn">开始检查</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在检查中...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="result" id="result">
+            <h3>检查结果</h3>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const inputText = document.getElementById('inputText');
+        const charCount = document.getElementById('charCount');
+        const checkBtn = document.getElementById('checkBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const resultContent = document.getElementById('resultContent');
+        
+        inputText.addEventListener('input', () => {
+            const len = inputText.value.length;
+            charCount.textContent = `${len} / 5000`;
+            
+            charCount.classList.remove('warning', 'error');
+            if (len > 4800) {
+                charCount.classList.add('error');
+            } else if (len > 4000) {
+                charCount.classList.add('warning');
+            }
+        });
+        
+        checkBtn.addEventListener('click', async () => {
+            const text = inputText.value.trim();
+            
+            if (!text) {
+                showError('请输入文本内容');
+                return;
+            }
+            
+            if (text.length > 5000) {
+                showError('文本长度超过限制（最大 5000 字符）');
+                return;
+            }
+            
+            checkBtn.disabled = true;
+            loading.classList.add('show');
+            result.classList.remove('show');
+            error.classList.remove('show');
+            
+            try {
+                const response = await fetch('/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResult(data.result);
+                    result.classList.add('show');
+                } else {
+                    showError(data.error || '检查失败');
+                }
+            } catch (err) {
+                showError('网络错误，请稍后重试');
+            } finally {
+                loading.classList.remove('show');
+                checkBtn.disabled = false;
+            }
+        });
+        
+        function parseErrors(result) {
+            if (result.format === 'json' && result.data) {
+                return {
+                    errors: result.data.errors || [],
+                    optimizedText: result.data.optimized_text || ''
+                };
+            }
+            // 降级处理：如果是原始文本，直接返回空
+            return { errors: [], optimizedText: result.data || '' };
+        }
+
+        function highlightErrors(originalText, errors) {
+            // 过滤掉空错误，按长度降序排序（先替换长的，避免短的覆盖）
+            const sortedErrors = errors.filter(err => err.error_text).sort((a, b) => {
+                return b.error_text.length - a.error_text.length;
+            });
+
+            // 创建替换标记，避免重复替换
+            let markers = [];
+            let processedText = originalText;
+
+            sortedErrors.forEach((err, index) => {
+                const marker = `___ERROR_MARKER_${index}___`;
+                const regexPattern = escapeRegex(err.error_text);
+                const regex = new RegExp(regexPattern, 'g');
+
+                // 替换原文中的错误文本为标记
+                processedText = processedText.replace(regex, marker);
+
+                // 保存标记和对应的 HTML
+                markers.push({
+                    marker: marker,
+                    html: `<span class="error-highlight" data-reason="${escapeHtml(err.reason)}">${escapeHtml(err.error_text)}</span>`
+                });
+            });
+
+            // 对处理后的文本进行 HTML 转义
+            let html = escapeHtml(processedText);
+
+            // 将标记替换为实际的 HTML
+            markers.forEach(({ marker, html: replacement }) => {
+                html = html.split(escapeHtml(marker)).join(replacement);
+            });
+
+            return html;
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function displayResult(result) {
+            // 处理 JSON 格式
+            if (result.format === 'json' && result.data) {
+                const { has_error, errors, optimized_text } = result.data;
+
+                if (!has_error || errors.length === 0) {
+                    resultContent.innerHTML = `
+                        <div class="empty-result">
+                            <div class="icon">✅</div>
+                            <div>未发现语法语义或拼写错误</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const highlightedText = highlightErrors(inputText.value, errors);
+
+                let errorsHtml = '';
+                errors.forEach((err, index) => {
+                    errorsHtml += `
+                        <div class="suggestion-item">
+                            <div class="item-title">错误 ${index + 1}</div>
+                            <div class="item-content">
+                                <strong>错误：</strong>${escapeHtml(err.error_text)}<br>
+                                <strong>正确：</strong>${escapeHtml(err.correct_text)}<br>
+                                <strong>原因：</strong>${escapeHtml(err.reason)}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                resultContent.innerHTML = `
+                    <div class="result-section">
+                        <h4>📝 原文（红色标记为错误位置）</h4>
+                        <div class="result-content">${highlightedText}</div>
+                    </div>
+                    <div class="result-section">
+                        <h4>🔍 错误列表</h4>
+                        <div class="suggestion-list">${errorsHtml}</div>
+                    </div>
+                    <div class="optimized-text">
+                        <h4>✨ 优化后的文本</h4>
+                        <div class="optimized-text-content">${escapeHtml(optimized_text)}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // 降级处理：显示原始文本
+            resultContent.innerHTML = `
+                <div class="result-section">
+                    <h4>📄 检查结果</h4>
+                    <div class="result-content">${escapeHtml(result.data)}</div>
+                </div>
+            `;
+        }
+        
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+        }
+    </script>
+</body>
+</html>
