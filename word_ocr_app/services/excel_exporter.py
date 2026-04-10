@@ -74,6 +74,7 @@ class ExcelExporter:
             data.append(
                 {
                     "单词": entry["word"],
+                    "CET4图片链接": "",  # 保持为空
                     "cet4出现次数": entry["cet4_count"],
                     "真题序号": entry["seq_num"],
                     "OCR识别题目原文": entry["original_text"],

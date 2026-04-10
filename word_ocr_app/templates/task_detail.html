@@ -757,20 +757,24 @@
                             <table class="preview-table">
                                 <thead>
                                     <tr>
-                                        <th class="col-word">单词</th>
-                                        <th class="col-seq">序号</th>
-                                        <th class="col-source">来源</th>
-                                        <th class="col-text">原文</th>
-                                        <th class="col-text">翻译</th>
+                                        <th>单词</th>
+                                        <th>CET4图片链接</th>
+                                        <th>cet4出现次数</th>
+                                        <th>真题序号</th>
+                                        <th>OCR识别题目原文</th>
+                                        <th>来源</th>
+                                        <th>翻译</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${preview.map(item => `
                                         <tr>
                                             <td>${escapeHtml(item.单词)}</td>
+                                            <td>${escapeHtml(item.CET4图片链接)}</td>
+                                            <td>${item.cet4出现次数}</td>
                                             <td>${item.真题序号}</td>
+                                            <td class="col-text" onclick="showModal('OCR识别题目原文', '${escapeHtml(item.OCR识别题目原文).replace(/'/g, "\\'")}')">${escapeHtml(item.OCR识别题目原文)}</td>
                                             <td>${escapeHtml(item.来源)}</td>
-                                            <td class="col-text" onclick="showModal('原文', '${escapeHtml(item.OCR识别题目原文).replace(/'/g, "\\'")}')">${escapeHtml(item.OCR识别题目原文)}</td>
                                             <td class="col-text" onclick="showModal('翻译', '${escapeHtml(item.翻译).replace(/'/g, "\\'")}')">${escapeHtml(item.翻译)}</td>
                                         </tr>
                                     `).join('')}
