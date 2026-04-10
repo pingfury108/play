@@ -376,6 +376,77 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            cursor: pointer;
+            color: #007bff;
+        }
+        .col-text:hover {
+            background: #e3f2fd;
+            text-decoration: underline;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .modal-header h3 {
+            font-size: 18px;
+            color: #333;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .modal-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            line-height: 1.8;
+            font-size: 15px;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         /* 统计信息 */
@@ -563,6 +634,17 @@
     <!-- Toast 提示 -->
     <div id="toast" class="toast"></div>
 
+    <!-- 模态框 -->
+    <div class="modal-overlay" id="textModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modalTitle">查看完整内容</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
     <script>
         // 全局状态
         let tasks = [];
@@ -600,6 +682,35 @@
                 toast.classList.remove('show');
             }, 3000);
         }
+
+        // 显示模态框
+        function showModal(title, content) {
+            const modal = document.getElementById('textModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalTitle.textContent = title;
+            modalBody.textContent = content;
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 关闭模态框
+        function closeModal(event) {
+            if (event && event.target !== document.getElementById('textModal')) {
+                return;
+            }
+            const modal = document.getElementById('textModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // ESC 键关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
 
         // ========== 上传创建任务 ==========
         
@@ -1003,8 +1114,8 @@
                                             <td>${escapeHtml(item.单词)}</td>
                                             <td>${item.真题序号}</td>
                                             <td>${escapeHtml(item.来源)}</td>
-                                            <td class="col-text" title="${escapeHtml(item.OCR识别题目原文)}">${escapeHtml(item.OCR识别题目原文)}</td>
-                                            <td class="col-text" title="${escapeHtml(item.翻译)}">${escapeHtml(item.翻译)}</td>
+                                            <td class="col-text" onclick="showModal('原文', '${escapeHtml(item.OCR识别题目原文).replace(/'/g, "\\'")}')">${escapeHtml(item.OCR识别题目原文)}</td>
+                                            <td class="col-text" onclick="showModal('翻译', '${escapeHtml(item.翻译).replace(/'/g, "\\'")}')">${escapeHtml(item.翻译)}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
