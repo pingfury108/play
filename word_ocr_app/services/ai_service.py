@@ -151,7 +151,6 @@ class AIService:
             kwargs.update(self.provider.thinking_disable_params)
 
         print(f"[DEBUG] 发送请求到 AI...")
-        print(f"[DEBUG] 请求参数: {kwargs}")
         try:
             response = client.chat.completions.create(**kwargs)
         except Exception as e:
