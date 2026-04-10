@@ -248,13 +248,13 @@ class WordEntry:
 
     @staticmethod
     def list_by_task(task_id: str) -> list:
-        """获取任务的所有单词条目"""
+        """获取任务的所有单词条目（按插入顺序，即图片中的从上到下顺序）"""
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
             """SELECT * FROM word_entries
                 WHERE task_id = ?
-                ORDER BY word, seq_num""",
+                ORDER BY id ASC""",
             (task_id,),
         )
         rows = cursor.fetchall()
