@@ -70,14 +70,13 @@ class ExcelExporter:
 
         data = []
         for entry in entries[:limit]:
+            # 原文保留完整内容，点击后在模态框中查看
             data.append(
                 {
                     "单词": entry["word"],
                     "cet4出现次数": entry["cet4_count"],
                     "真题序号": entry["seq_num"],
-                    "OCR识别题目原文": entry["original_text"][:100] + "..."
-                    if len(entry["original_text"]) > 100
-                    else entry["original_text"],
+                    "OCR识别题目原文": entry["original_text"],
                     "来源": entry["source"] or "",
                     "翻译": entry["translation"] or "",
                 }
