@@ -262,6 +262,19 @@ class WordEntry:
         return [dict(row) for row in rows]
 
     @staticmethod
+    def get_max_seq_num(task_id: str) -> int:
+        """获取任务当前最大的 seq_num"""
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT MAX(seq_num) FROM word_entries WHERE task_id = ?",
+            (task_id,),
+        )
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] or 0 if result else 0
+
+    @staticmethod
     def update_translation(entry_id: int, translation: str):
         """更新翻译"""
         conn = get_db()

@@ -83,10 +83,14 @@ class OCRProcessor:
             print(f"[WARN] 未识别到单词")
             return
 
-        # 为每个例句创建条目（按图片从上到下顺序，seq_num 从 1 开始递增）
+        # 获取当前任务已有的最大 seq_num，追加时继续编号
+        max_seq_num = WordEntry.get_max_seq_num(task_id)
+        print(f"[DEBUG] 任务 {task_id} 当前最大 seq_num: {max_seq_num}")
+
+        # 为每个例句创建条目（seq_num 在任务级别连续递增）
         for index, example in enumerate(examples, start=1):
-            # seq_num 是顺序号（1, 2, 3...），不是真题题号
-            seq_num = index
+            # seq_num = 当前最大值 + 索引，确保任务级别连续
+            seq_num = max_seq_num + index
             original_text = example.get("original_text", "")
             source = example.get("source", "")
 
@@ -104,4 +108,4 @@ class OCRProcessor:
                 source=source,
                 translation=None,
             )
-            print(f"[INFO] 保存条目: {word} - 顺序号 {seq_num}")
+            print(f"[INFO] 保存条目: {word} - 真题序号 {seq_num}")
