@@ -116,7 +116,7 @@ class AIService:
 请严格按照 system_prompt 中的 JSON 格式输出。"""
 
         # 构建消息，包含图片
-        print(f"[DEBUG] 开始调用 AI API，模型: {self.provider.model}")
+        print(f"[DEBUG] 开始调用 AI API，模型: {self.provider.model}, thinking={self.provider.thinking}")
         from openai import OpenAI
 
         client = OpenAI(
@@ -124,27 +124,36 @@ class AIService:
             base_url=self.provider.base_url,
         )
 
-        print(f"[DEBUG] 发送请求到 AI...")
-        try:
-            response = client.chat.completions.create(
-                model=self.provider.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": user_prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_base64}"
-                                },
+        # 构建请求参数
+        kwargs = dict(
+            model=self.provider.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
                             },
-                        ],
-                    },
-                ],
-                temperature=0.1,
-            )
+                        },
+                    ],
+                },
+            ],
+            temperature=0.1,
+        )
+
+        # 处理思考模式（显式禁用，避免额外的思考内容干扰 JSON 输出）
+        if not self.provider.thinking and self.provider.thinking_disable_params:
+            print(f"[DEBUG] 禁用思考模式: {self.provider.thinking_disable_params}")
+            kwargs.update(self.provider.thinking_disable_params)
+
+        print(f"[DEBUG] 发送请求到 AI...")
+        print(f"[DEBUG] 请求参数: {kwargs}")
+        try:
+            response = client.chat.completions.create(**kwargs)
         except Exception as e:
             print(f"[ERROR] AI API 调用失败: {str(e)}")
             raise
@@ -192,7 +201,8 @@ class AIService:
             base_url=self.provider.base_url,
         )
 
-        response = client.chat.completions.create(
+        # 构建请求参数
+        kwargs = dict(
             model=self.provider.model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -200,6 +210,12 @@ class AIService:
             ],
             temperature=0.3,
         )
+
+        # 处理思考模式（显式禁用）
+        if not self.provider.thinking and self.provider.thinking_disable_params:
+            kwargs.update(self.provider.thinking_disable_params)
+
+        response = client.chat.completions.create(**kwargs)
 
         result_text = response.choices[0].message.content or ""
         result_text = self._clean_json_response(result_text)
