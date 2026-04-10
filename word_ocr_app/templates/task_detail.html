@@ -646,6 +646,7 @@
                 if (data.success) {
                     showToast(`成功上传 ${data.images.length} 张图片`);
                     loadTaskDetail();
+                    loadPreviewData();  // 刷新预览数据
                 } else {
                     showToast(data.error || '上传失败', 'error');
                 }
@@ -666,6 +667,7 @@
                 if (data.success) {
                     showToast('图片已删除');
                     loadTaskDetail();
+                    loadPreviewData();  // 刷新预览数据
                 } else {
                     showToast(data.error || '删除失败', 'error');
                 }
@@ -687,6 +689,7 @@
                 if (data.success) {
                     showToast(data.message);
                     loadTaskDetail();
+                    loadPreviewData();  // 刷新预览数据
                 } else {
                     showToast(data.error || '处理失败', 'error');
                 }
