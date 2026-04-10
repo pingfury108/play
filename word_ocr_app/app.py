@@ -41,8 +41,20 @@ init_db()
 
 @app.route("/")
 def index():
-    """首页"""
-    return render_template("word_ocr.html")
+    """首页 - 上传创建任务"""
+    return render_template("index.html")
+
+
+@app.route("/tasks")
+def tasks_page():
+    """任务列表页"""
+    return render_template("tasks.html")
+
+
+@app.route("/task/<task_id>")
+def task_detail_page(task_id):
+    """任务详情页"""
+    return render_template("task_detail.html")
 
 
 # ========== 任务管理 API ==========
