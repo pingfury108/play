@@ -33,12 +33,23 @@ class OCRProcessor:
             print(f"[ERROR] 图片不存在: {image_id}")
             return False
 
+        print(f"[INFO] 开始处理图片: {image['filename']} (ID: {image_id})")
+        print(f"[DEBUG] stored_path: {image['stored_path']}")
+        
         try:
             # 调用 AI 识别 (stored_path 是相对路径，需要拼接完整路径)
-            print(f"[INFO] 开始识别图片: {image['filename']}")
             full_path = APP_DIR / image["stored_path"]
+            print(f"[DEBUG] 完整路径: {full_path}")
+            
+            # 检查文件是否存在
+            if not full_path.exists():
+                print(f"[ERROR] 文件不存在: {full_path}")
+                Image.update_status(image_id, "failed")
+                return False
+            
+            print(f"[INFO] 调用 AI 识别...")
             ocr_result = self.ai_service.recognize_image(str(full_path))
-            print(f"[INFO] 识别结果: {ocr_result}")
+            print(f"[INFO] 识别成功: {ocr_result}")
 
             # 保存 OCR 结果
             Image.update_status(image_id, "completed", ocr_result)
@@ -50,6 +61,8 @@ class OCRProcessor:
 
         except Exception as e:
             print(f"[ERROR] 处理图片失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             Image.update_status(image_id, "failed")
             return False
 

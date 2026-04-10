@@ -235,12 +235,17 @@ def delete_image(image_id):
 @app.route("/api/tasks/<task_id>/process", methods=["POST"])
 def process_task(task_id):
     """处理任务中的所有待处理图片"""
+    print(f"[DEBUG] 开始处理任务: {task_id}")
+    
     task = Task.get_by_id(task_id)
     if not task:
+        print(f"[ERROR] 任务不存在: {task_id}")
         return jsonify({"success": False, "error": "任务不存在"}), 404
 
     # 获取待处理图片
     pending_images = Image.list_pending_by_task(task_id)
+    print(f"[DEBUG] 待处理图片数: {len(pending_images)}")
+    
     if not pending_images:
         return jsonify({"success": True, "message": "没有待处理的图片", "processed": 0})
 
@@ -248,33 +253,53 @@ def process_task(task_id):
     Task.update_status(task_id, "processing")
 
     # 初始化处理器
-    ai_service = AIService()
-    processor = OCRProcessor(ai_service)
-    translator = Translator(ai_service)
+    print("[DEBUG] 初始化 AI 服务...")
+    try:
+        ai_service = AIService()
+        processor = OCRProcessor(ai_service)
+        translator = Translator(ai_service)
+        print("[DEBUG] AI 服务初始化完成")
+    except Exception as e:
+        print(f"[ERROR] AI 服务初始化失败: {str(e)}")
+        Task.update_status(task_id, "pending")
+        return jsonify({"success": False, "error": f"AI 服务初始化失败: {str(e)}"}), 500
 
     # 处理每张图片
     processed = 0
     failed = 0
 
     for image in pending_images:
+        print(f"[DEBUG] 处理图片: {image['id']} - {image['filename']}")
         try:
             success = processor.process_image(image["id"])
             if success:
                 processed += 1
+                print(f"[DEBUG] 图片处理成功: {image['id']}")
             else:
                 failed += 1
+                print(f"[DEBUG] 图片处理失败: {image['id']}")
         except Exception as e:
-            print(f"[ERROR] 处理图片失败: {str(e)}")
+            print(f"[ERROR] 处理图片异常: {str(e)}")
+            import traceback
+            traceback.print_exc()
             failed += 1
 
+    print(f"[DEBUG] 图片处理完成: 成功 {processed}, 失败 {failed}")
+
     # 翻译所有条目
+    print("[DEBUG] 开始翻译...")
     try:
         translator.translate_entries(task_id)
+        print("[DEBUG] 翻译完成")
     except Exception as e:
         print(f"[ERROR] 翻译失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
     # 更新任务状态
-    Task.update_status(task_id, "completed" if failed == 0 else "partial")
+    final_status = "completed" if failed == 0 and processed > 0 else ("partial" if processed > 0 else "pending")
+    Task.update_status(task_id, final_status)
+    print(f"[DEBUG] 任务状态更新为: {final_status}")
 
     return jsonify(
         {

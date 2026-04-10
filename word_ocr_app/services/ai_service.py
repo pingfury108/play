@@ -113,6 +113,7 @@ class AIService:
 请严格按照 system_prompt 中的 JSON 格式输出。"""
 
         # 构建消息，包含图片
+        print(f"[DEBUG] 开始调用 AI API，模型: {self.provider.model}")
         from openai import OpenAI
 
         client = OpenAI(
@@ -120,31 +121,39 @@ class AIService:
             base_url=self.provider.base_url,
         )
 
-        response = client.chat.completions.create(
-            model=self.provider.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
+        print(f"[DEBUG] 发送请求到 AI...")
+        try:
+            response = client.chat.completions.create(
+                model=self.provider.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_base64}"
+                                },
                             },
-                        },
-                    ],
-                },
-            ],
-            temperature=0.1,
-        )
+                        ],
+                    },
+                ],
+                temperature=0.1,
+            )
+        except Exception as e:
+            print(f"[ERROR] AI API 调用失败: {str(e)}")
+            raise
 
+        print(f"[DEBUG] AI 响应收到")
         result_text = response.choices[0].message.content or ""
+        print(f"[DEBUG] 原始响应长度: {len(result_text)}")
         result_text = self._clean_json_response(result_text)
 
         try:
             result = json.loads(result_text)
+            print(f"[DEBUG] JSON 解析成功")
             return result
         except json.JSONDecodeError as e:
             raise Exception(f"JSON 解析失败: {str(e)}\n原始响应: {result_text}")
