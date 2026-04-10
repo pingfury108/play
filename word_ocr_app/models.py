@@ -56,7 +56,7 @@ def init_db():
             image_id TEXT NOT NULL,
             word TEXT NOT NULL,
             cet4_count INTEGER DEFAULT 0,
-            seq_num INTEGER NOT NULL,
+            seq_num INTEGER NOT NULL,  -- 顺序号（1,2,3...），不是真题题号
             original_text TEXT NOT NULL,
             source TEXT,
             translation TEXT,

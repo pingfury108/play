@@ -83,9 +83,10 @@ class OCRProcessor:
             print(f"[WARN] 未识别到单词")
             return
 
-        # 为每个例句创建条目
-        for example in examples:
-            seq_num = example.get("seq_num", 0)
+        # 为每个例句创建条目（按图片从上到下顺序，seq_num 从 1 开始递增）
+        for index, example in enumerate(examples, start=1):
+            # seq_num 是顺序号（1, 2, 3...），不是真题题号
+            seq_num = index
             original_text = example.get("original_text", "")
             source = example.get("source", "")
 
@@ -103,4 +104,4 @@ class OCRProcessor:
                 source=source,
                 translation=None,
             )
-            print(f"[INFO] 保存条目: {word} - {seq_num}")
+            print(f"[INFO] 保存条目: {word} - 顺序号 {seq_num}")
