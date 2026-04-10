@@ -461,20 +461,21 @@
         <button class="btn btn-success" id="btnExport" onclick="exportTask()" disabled>
             📥 导出 Excel
         </button>
-        <button class="btn btn-secondary" onclick="previewTask()">
-            👁️ 预览数据
-        </button>
         <button class="btn btn-danger" onclick="deleteTask()">
             🗑️ 删除任务
         </button>
     </div>
 
-    <!-- 数据预览 -->
-    <div class="section" id="previewSection" style="display:none">
+    <!-- 数据预览 - 默认显示 -->
+    <div class="section" id="previewSection">
         <div class="section-header">
             <div class="section-title">📊 数据预览</div>
         </div>
-        <div id="previewContent"></div>
+        <div id="previewContent">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
     </div>
 
     <!-- 模态框 -->
@@ -719,12 +720,10 @@
             }
         }
 
-        // 预览任务
-        async function previewTask() {
-            const section = document.getElementById('previewSection');
+        // 加载预览数据
+        async function loadPreviewData() {
             const content = document.getElementById('previewContent');
             
-            section.style.display = 'block';
             content.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
             try {
@@ -806,8 +805,9 @@
             }
         }
 
-        // 初始化
+        // 初始化 - 加载任务详情和预览数据
         loadTaskDetail();
+        loadPreviewData();
     </script>
 </body>
 </html>
