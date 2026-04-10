@@ -37,11 +37,22 @@ PROVIDER_CONFIG = {
         "base_url_env": "ARK_BASE_URL",
         "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
         "model_env": "ARK_MODEL",
-        "json_mode": True,
+        "json_mode": False,
         # 思考模式：extra_body 传 thinking.type=enabled
         "thinking_model": None,
-        "thinking_params": {"extra_body": {"thinking": {"type": "enabled"}}},
+        "thinking_params": {"extra_body": {"thinking": {"type": "enabled"}, "reasoning_effort": "medium"}},
         "thinking_disable_params": {"extra_body": {"thinking": {"type": "disabled"}}},
+        "provider_class": OpenAICompatibleProvider,
+    },
+    "dmxapi": {
+        "api_key_env": "DMXAPI_API_KEY",
+        "base_url_env": "DMXAPI_BASE_URL",
+        "default_base_url": "https://www.dmxapi.com/v1",
+        "model_env": "DMXAPI_MODEL",
+        "json_mode": True,
+        "thinking_model": None,
+        "thinking_params": {},
+        "thinking_disable_params": {},
         "provider_class": OpenAICompatibleProvider,
     },
 }
@@ -55,7 +66,14 @@ PROVIDER_MODELS = {
     "dashscope": [
         {"id": "qwen3.5-flash", "name": "qwen3.5-flash"},
     ],
-    "ark": [],
+    "ark": [
+        {"id": "ep-20250612145622-dpwkh", "name": "ep-20250612145622-dpwkh"},
+        {"id": "doubao-seed-2-0-lite-260215", "name": "doubao-seed-2-0-lite-260215"},
+        {"id": "doubao-seed-2-0-pro-260215", "name": "doubao-seed-2-0-pro-260215"},
+    ],
+    "dmxapi": [
+        {"id": "gpt-5", "name": "GPT-5"},
+    ],
 }
 
 

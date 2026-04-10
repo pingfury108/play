@@ -23,7 +23,7 @@ class OpenAICompatibleProvider(BaseProvider):
                 messages=[
                     {
                         "role": "system",
-                        "content": "你是一个专业的语法语义检查助手，擅长中英文文本的语法、语义和拼写检查。必须仔细检查文本，找出所有可能的错误，不要遗漏任何一处。",
+                        "content": self.get_system_prompt(),
                     },
                     {"role": "user", "content": self.get_prompt(text)},
                 ],
