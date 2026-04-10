@@ -720,6 +720,17 @@
             }
         }
 
+        // 存储预览数据
+        let currentPreviewData = [];
+
+        // 显示文本模态框
+        function showTextModal(idx, type) {
+            const item = currentPreviewData[idx];
+            if (!item) return;
+            const content = type === '原文' ? item.OCR识别题目原文 : item.翻译;
+            showModal(type, content || '无内容');
+        }
+
         // 加载预览数据
         async function loadPreviewData() {
             const content = document.getElementById('previewContent');
@@ -737,6 +748,7 @@
                 if (statsData.success && previewData.success) {
                     const stats = statsData.stats;
                     const preview = previewData.preview;
+                    currentPreviewData = preview;  // 存储数据
 
                     content.innerHTML = `
                         <div class="stats-bar">
@@ -767,15 +779,15 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${preview.map(item => `
+                                    ${preview.map((item, idx) => `
                                         <tr>
                                             <td>${escapeHtml(item.单词)}</td>
                                             <td>${escapeHtml(item.CET4图片链接)}</td>
                                             <td>${item.cet4出现次数}</td>
                                             <td>${item.真题序号}</td>
-                                            <td class="col-text" onclick="showModal('OCR识别题目原文', '${escapeHtml(item.OCR识别题目原文).replace(/'/g, "\\'")}')">${escapeHtml(item.OCR识别题目原文)}</td>
+                                            <td class="col-text" onclick="showTextModal(${idx}, '原文')">${escapeHtml(item.OCR识别题目原文)}</td>
                                             <td>${escapeHtml(item.来源)}</td>
-                                            <td class="col-text" onclick="showModal('翻译', '${escapeHtml(item.翻译).replace(/'/g, "\\'")}')">${escapeHtml(item.翻译)}</td>
+                                            <td class="col-text" onclick="showTextModal(${idx}, '翻译')">${escapeHtml(item.翻译)}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
