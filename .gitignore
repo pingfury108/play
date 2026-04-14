@@ -52,3 +52,7 @@ Thumbs.db
 tmp/
 tts_app/output/
 tts_app/uploads/
+mdict_app/uploads/
+mdict_app/database.db
+word_ocr_app/database.db
+word_ocr_app/static/uploads/

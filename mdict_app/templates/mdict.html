@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDict 字典浏览器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 18px;
+            color: #222;
+        }
+        .dict-select {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            min-width: 180px;
+        }
+        .btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            background: #007bff;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #b02a37; }
+        .btn:disabled { background: #aaa; cursor: not-allowed; }
+
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 360px;
+            min-width: 280px;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+        .search-box {
+            padding: 12px;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            gap: 8px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .entry-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+        .entry-item {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background .15s;
+        }
+        .entry-item:hover { background: #f5f8ff; }
+        .entry-item.active { background: #e6f0ff; border-left: 3px solid #007bff; }
+        .entry-keyword { font-weight: 500; color: #222; }
+        .entry-empty {
+            padding: 30px 14px;
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+        }
+        .pagination {
+            padding: 10px 12px;
+            border-top: 1px solid #e8e8e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #555;
+        }
+        .pagination button {
+            padding: 4px 10px;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination button:disabled { color: #aaa; cursor: not-allowed; }
+
+        .content {
+            flex: 1;
+            background: #fafafa;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .content-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            padding: 20px;
+            min-height: 200px;
+        }
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .content-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #111;
+        }
+        .content-meta {
+            font-size: 12px;
+            color: #888;
+        }
+        .content-body {
+            font-size: 15px;
+            line-height: 1.7;
+        }
+        .content-body ::v-deep a { color: #007bff; }
+        .placeholder {
+            color: #888;
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .upload-area {
+            padding: 40px;
+            text-align: center;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .upload-area:hover { border-color: #007bff; background: #f8fbff; }
+        .upload-area input { display: none; }
+
+        .toast {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            padding: 10px 16px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity .2s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: #28a745; }
+        .toast.error { background: #dc3545; }
+
+        .loading-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.7);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .loading-mask.show { display: flex; }
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e8e8e8;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <h1>MDict 字典浏览器</h1>
+            <select id="dictSelect" class="dict-select">
+                <option value="">请选择字典</option>
+            </select>
+            <button id="uploadBtn" class="btn">上传字典</button>
+            <button id="deleteBtn" class="btn btn-danger" disabled>删除</button>
+            <span id="dictMeta" style="margin-left:auto;color:#666;font-size:13px;"></span>
+        </div>
+
+        <div class="main">
+            <div class="sidebar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="输入关键词搜索词条…" disabled>
+                    <button id="searchBtn" class="btn" disabled>搜索</button>
+                </div>
+                <div class="entry-list" id="entryList">
+                    <div class="entry-empty">请先上传或选择字典</div>
+                </div>
+                <div class="pagination" id="pagination" style="display:none;">
+                    <button id="prevPage">上一页</button>
+                    <span id="pageInfo"></span>
+                    <button id="nextPage">下一页</button>
+                </div>
+            </div>
+
+            <div class="content" id="contentArea">
+                <div class="content-card" id="contentCard" style="display:none;">
+                    <div class="content-header">
+                        <div class="content-title" id="contentTitle"></div>
+                        <div class="content-meta" id="contentMeta"></div>
+                    </div>
+                    <div class="content-body" id="entryContentBody"></div>
+                </div>
+                <div class="placeholder" id="contentPlaceholder">在左侧选择词条查看详情</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-mask" id="loadingMask">
+        <div class="spinner"></div>
+        <div id="loadingText">处理中…</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        let dictionaries = [];
+        let currentDictId = '';
+        let currentPage = 1;
+        let currentKeyword = '';
+        let totalEntries = 0;
+        const pageSize = 50;
+
+        async function api(url, options = {}) {
+            const res = await fetch(url, options);
+            return res.json();
+        }
+
+        function showToast(msg, type = 'success') {
+            const t = $('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + type + ' show';
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        function setLoading(show, text = '处理中…') {
+            $('loadingMask').classList.toggle('show', show);
+            $('loadingText').textContent = text;
+        }
+
+        async function loadDictionaries() {
+            const data = await api('/api/dictionaries');
+            if (data.success) {
+                dictionaries = data.dictionaries;
+                const select = $('dictSelect');
+                const old = select.value;
+                select.innerHTML = '<option value="">请选择字典</option>' +
+                    dictionaries.map(d => `<option value="${d.id}">${d.title || d.name}</option>`).join('');
+                if (old && dictionaries.some(d => d.id === old)) {
+                    select.value = old;
+                } else if (dictionaries.length > 0) {
+                    select.value = dictionaries[0].id;
+                }
+                updateDictUI();
+            }
+        }
+
+        function updateDictUI() {
+            const dictId = $('dictSelect').value;
+            currentDictId = dictId;
+            $('deleteBtn').disabled = !dictId;
+            $('searchInput').disabled = !dictId;
+            $('searchBtn').disabled = !dictId;
+
+            const dict = dictionaries.find(d => d.id === dictId);
+            $('dictMeta').textContent = dict ? `词条数: ${dict.entry_count.toLocaleString()}  |  版本: ${dict.version || '-'}` : '';
+
+            if (dictId) {
+                currentPage = 1;
+                currentKeyword = '';
+                $('searchInput').value = '';
+                loadEntries();
+            } else {
+                $('entryList').innerHTML = '<div class="entry-empty">请先上传或选择字典</div>';
+                $('pagination').style.display = 'none';
+                $('contentCard').style.display = 'none';
+                $('contentPlaceholder').style.display = 'block';
+            }
+        }
+
+        async function loadEntries() {
+            if (!currentDictId) return;
+            setLoading(true, '加载词条…');
+            const url = `/api/dictionaries/${currentDictId}/entries?page=${currentPage}&page_size=${pageSize}&keyword=${encodeURIComponent(currentKeyword)}`;
+            const data = await api(url);
+            setLoading(false);
+            if (!data.success) {
+                showToast(data.error || '加载失败', 'error');
+                return;
+            }
+            totalEntries = data.total;
+            renderEntries(data.entries, data.total, data.page, data.page_size);
+        }
+
+        function renderEntries(entries, total, page, psize) {
+            const list = $('entryList');
+            if (!entries.length) {
+                list.innerHTML = '<div class="entry-empty">未找到匹配词条</div>';
+                $('pagination').style.display = 'none';
+                return;
+            }
+            list.innerHTML = entries.map(e => `
+                <div class="entry-item" data-id="${e.id}" onclick="onEntryClick('${e.id}')">
+                    <span class="entry-keyword">${escapeHtml(e.keyword)}</span>
+                </div>
+            `).join('');
+
+            const totalPages = Math.max(1, Math.ceil(total / psize));
+            $('pagination').style.display = 'flex';
+            $('pageInfo').textContent = `第 ${page} / ${totalPages} 页  (共 ${total.toLocaleString()} 条)`;
+            $('prevPage').disabled = page <= 1;
+            $('nextPage').disabled = page >= totalPages;
+        }
+
+        async function onEntryClick(entryId) {
+            document.querySelectorAll('.entry-item').forEach(el => el.classList.remove('active'));
+            const el = document.querySelector(`.entry-item[data-id="${entryId}"]`);
+            if (el) el.classList.add('active');
+
+            setLoading(true, '加载详情…');
+            const data = await api(`/api/entries/${entryId}`);
+            setLoading(false);
+            if (!data.success) {
+                showToast(data.error || '加载失败', 'error');
+                return;
+            }
+            const entry = data.entry;
+            $('contentPlaceholder').style.display = 'none';
+            $('contentCard').style.display = 'block';
+            $('contentTitle').textContent = entry.keyword;
+            $('contentMeta').textContent = entry.id;
+            $('entryContentBody').innerHTML = entry.content_html;
+            bindEntryLinks();
+        }
+
+        function bindEntryLinks() {
+            const body = $('entryContentBody');
+            if (!body) return;
+            body.addEventListener('click', async (e) => {
+                const a = e.target.closest('a[href^="entry://"]');
+                if (!a) return;
+                e.preventDefault();
+                const target = a.getAttribute('href').replace('entry://', '').trim();
+                if (!target || !currentDictId) return;
+                await jumpToEntry(target);
+            });
+        }
+
+        async function jumpToEntry(keyword) {
+            setLoading(true, '跳转中…');
+            const data = await api(`/api/dictionaries/${currentDictId}/entries?page=1&page_size=10&keyword=${encodeURIComponent(keyword)}`);
+            setLoading(false);
+            if (!data.success) {
+                showToast(data.error || '跳转失败', 'error');
+                return;
+            }
+            if (!data.entries.length) {
+                showToast(`未找到词条: ${keyword}`, 'error');
+                return;
+            }
+            // prefer exact match
+            const exact = data.entries.find(e => e.keyword.toLowerCase() === keyword.toLowerCase());
+            const entry = exact || data.entries[0];
+            await onEntryClick(entry.id);
+            showToast(`已跳转至: ${entry.keyword}`);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // upload
+        $('uploadBtn').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.mdx';
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+                const form = new FormData();
+                form.append('mdx_file', file);
+                setLoading(true, '正在解析并入库，请稍候…');
+                const data = await api('/api/dictionaries', { method: 'POST', body: form });
+                setLoading(false);
+                if (data.success) {
+                    showToast('上传成功');
+                    await loadDictionaries();
+                    $('dictSelect').value = data.dictionary.id;
+                    updateDictUI();
+                } else {
+                    showToast(data.error || '上传失败', 'error');
+                }
+            };
+            input.click();
+        });
+
+        $('deleteBtn').addEventListener('click', async () => {
+            if (!currentDictId) return;
+            if (!confirm('确定要删除该字典及其所有词条吗？')) return;
+            setLoading(true, '删除中…');
+            const data = await api(`/api/dictionaries/${currentDictId}`, { method: 'DELETE' });
+            setLoading(false);
+            if (data.success) {
+                showToast('删除成功');
+                await loadDictionaries();
+                updateDictUI();
+            } else {
+                showToast(data.error || '删除失败', 'error');
+            }
+        });
+
+        $('dictSelect').addEventListener('change', updateDictUI);
+
+        $('searchBtn').addEventListener('click', () => {
+            currentKeyword = $('searchInput').value.trim();
+            currentPage = 1;
+            loadEntries();
+        });
+
+        $('searchInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                currentKeyword = $('searchInput').value.trim();
+                currentPage = 1;
+                loadEntries();
+            }
+        });
+
+        $('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) { currentPage--; loadEntries(); }
+        });
+        $('nextPage').addEventListener('click', () => {
+            const totalPages = Math.ceil(totalEntries / pageSize);
+            if (currentPage < totalPages) { currentPage++; loadEntries(); }
+        });
+
+        loadDictionaries();
+    </script>
+</body>
+</html>
