@@ -75,42 +75,42 @@ class BaseProvider(ABC):
 输入："我今天去了一个很好得餐厅，the food is delicous。"
 
 输出：
-{{{{
+{{
   "has_error": true,
   "errors": [
-    {{{{
+    {{
       "error_text": "好得",
       "correct_text": "好的",
       "reason": "结构助词误用：修饰名词应使用「的」而非「得」"
-    }}}},
-    {{{{
+    }},
+    {{
       "error_text": "delicous",
       "correct_text": "delicious",
       "reason": "英文拼写错误：缺少字母 i"
-    }}}},
-    {{{{
+    }},
+    {{
       "error_text": "。",
       "correct_text": "。",
       "reason": "英文句子末尾使用了中文句号，应统一标点风格"
-    }}}}
+    }}
   ],
   "optimized_text": "我今天去了一个很好的餐厅，the food is delicious."
-}}}}
+}}
 
 ## 输出格式
 严格返回以下 JSON，不要包含任何其他文字：
 
-{{{{
+{{
   "has_error": true/false,
   "errors": [
-    {{{{
+    {{
       "error_text": "原文中错误的精确子串",
       "correct_text": "修正后的文本",
       "reason": "错误类型 + 具体原因"
-    }}}}
+    }}
   ],
   "optimized_text": "修正后的完整文本"
-}}}}
+}}
 
 如果无错误，has_error 为 false，errors 为空数组，optimized_text 与原文相同。
 
@@ -127,9 +127,23 @@ class BaseProvider(ABC):
         if text.endswith("```"):
             text = text[:-3]
         text = text.strip()
+
+        # 容错：模型有时输出双大括号 {{ }}，修正为单大括号
+        if text.startswith("{{") and not text.startswith("{"):
+            text = "{" + text[2:]
+        if text.endswith("}}") and not text.endswith("}"):
+            text = text[:-2] + "}"
+
         # LLM 有时在 JSON 前后输出说明文字，直接定位第一个 { 和最后一个 }
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end != -1 and end > start:
-            text = text[start : end + 1]
+            inner = text[start : end + 1]
+            # 如果提取的内容内部有双大括号包裹，也尝试修正
+            if inner.startswith("{{") and inner.endswith("}}"):
+                inner = "{" + inner[2:-2] + "}"
+            text = inner
+
         return text
+
+
