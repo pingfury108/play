@@ -11,11 +11,22 @@ from .base import BaseProvider
 class OpenAICompatibleProvider(BaseProvider):
     """OpenAI 兼容格式的 Provider"""
 
-    def check_grammar(self, text: str) -> dict:
+    def check_grammar(self, text: str = "", image: str = "") -> dict:
+        if not text and not image:
+            raise ValueError("text 与 image 必须提供其中之一")
+
         client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
         )
+
+        if image:
+            user_content = [
+                {"type": "text", "text": self.get_image_prompt()},
+                {"type": "image_url", "image_url": {"url": image}},
+            ]
+        else:
+            user_content = self.get_prompt(text)
 
         try:
             kwargs = dict(
@@ -25,10 +36,10 @@ class OpenAICompatibleProvider(BaseProvider):
                         "role": "system",
                         "content": self.get_system_prompt(),
                     },
-                    {"role": "user", "content": self.get_prompt(text)},
+                    {"role": "user", "content": user_content},
                 ],
             )
-            print(f"[DEBUG] thinking={self.thinking} model={self.model} json_mode={self.json_mode}")
+            print(f"[DEBUG] thinking={self.thinking} model={self.model} json_mode={self.json_mode} image={bool(image)}")
             if self.thinking:
                 # 思考模式：合并厂商参数，禁用 json_mode（思考模型普遍不支持）
                 kwargs.update(self.thinking_params)
@@ -38,7 +49,6 @@ class OpenAICompatibleProvider(BaseProvider):
                     kwargs.update(self.thinking_disable_params)
                 if self.json_mode:
                     kwargs["response_format"] = {"type": "json_object"}
-            print(f"[DEBUG] API kwargs={kwargs}")
             response = client.chat.completions.create(**kwargs)
 
             result_text = response.choices[0].message.content or ""

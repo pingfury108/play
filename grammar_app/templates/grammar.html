@@ -121,6 +121,88 @@
             font-weight: 500;
             font-size: 15px;
         }
+        .mode-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .mode-tab {
+            background: none;
+            border: none;
+            padding: 10px 22px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #777;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .mode-tab:hover {
+            color: #007bff;
+        }
+        .mode-tab.active {
+            color: #007bff;
+            border-color: #007bff;
+            font-weight: 500;
+        }
+        .mode-panel.hidden {
+            display: none;
+        }
+        .image-drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 36px 20px;
+            text-align: center;
+            cursor: pointer;
+            color: #999;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .image-drop-zone:hover,
+        .image-drop-zone.dragover {
+            border-color: #007bff;
+            background: #f0f7ff;
+            color: #007bff;
+        }
+        .image-drop-zone .hint {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .image-drop-zone .hint-sub {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .image-preview {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .image-preview img {
+            max-width: 100%;
+            max-height: 360px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            display: block;
+        }
+        .image-preview .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .image-preview .remove-btn:hover {
+            background: #b02a37;
+        }
+        .image-preview.hidden {
+            display: none;
+        }
         textarea {
             width: 100%;
             min-height: 200px;
@@ -296,6 +378,8 @@
             color: #333;
             line-height: 1.8;
             font-weight: 500;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
         .empty-result {
             text-align: center;
@@ -350,9 +434,29 @@
         </div>
 
         <div class="form-group">
-            <label for="inputText">输入文本：</label>
-            <textarea id="inputText" placeholder="请输入需要检查语法语义的文本..."></textarea>
-            <div class="char-count" id="charCount">0 / 5000</div>
+            <div class="mode-tabs">
+                <button class="mode-tab active" type="button" data-mode="text">文本</button>
+                <button class="mode-tab" type="button" data-mode="image">图片</button>
+            </div>
+
+            <div class="mode-panel" id="textPanel">
+                <label for="inputText">输入文本：</label>
+                <textarea id="inputText" placeholder="请输入需要检查语法语义的文本..."></textarea>
+                <div class="char-count" id="charCount">0 / 5000</div>
+            </div>
+
+            <div class="mode-panel hidden" id="imagePanel">
+                <label>上传图片：</label>
+                <div class="image-drop-zone" id="imageDropZone">
+                    <p class="hint">点击选择 / 拖入图片 / 或在此页面按 Ctrl+V 粘贴</p>
+                    <p class="hint-sub">支持 PNG / JPG / WEBP 等，最大 5MB</p>
+                    <input type="file" id="imageFile" accept="image/*" hidden>
+                </div>
+                <div class="image-preview hidden" id="imagePreview">
+                    <img id="previewImg" alt="预览">
+                    <button class="remove-btn" id="removeImageBtn" type="button">移除图片</button>
+                </div>
+            </div>
         </div>
 
         <button class="btn" id="checkBtn" disabled>开始检查</button>
@@ -382,6 +486,17 @@
         const modelSelect = document.getElementById('modelSelect');
         const thinkingToggle = document.getElementById('thinkingToggle');
         const noProviders = document.getElementById('noProviders');
+        const textPanel = document.getElementById('textPanel');
+        const imagePanel = document.getElementById('imagePanel');
+        const imageDropZone = document.getElementById('imageDropZone');
+        const imageFile = document.getElementById('imageFile');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+
+        const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+        let currentMode = 'text';
+        let currentImage = '';
 
         const PROVIDER_NAMES = {
             deepseek: 'DeepSeek',
@@ -458,16 +573,100 @@
             }
         });
 
-        checkBtn.addEventListener('click', async () => {
-            const text = inputText.value.trim();
+        // 模式切换
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                currentMode = tab.dataset.mode;
+                document.querySelectorAll('.mode-tab').forEach(t => {
+                    t.classList.toggle('active', t === tab);
+                });
+                textPanel.classList.toggle('hidden', currentMode !== 'text');
+                imagePanel.classList.toggle('hidden', currentMode !== 'image');
+                error.classList.remove('show');
+            });
+        });
 
-            if (!text) {
-                showError('请输入文本内容');
+        // 图片读取
+        function readImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showError('请选择图片文件');
                 return;
             }
-            if (text.length > 5000) {
-                showError('文本长度超过限制（最大 5000 字符）');
+            if (file.size > MAX_IMAGE_BYTES) {
+                showError('图片过大，最大 5MB');
                 return;
+            }
+            const reader = new FileReader();
+            reader.onload = e => {
+                currentImage = e.target.result;
+                previewImg.src = currentImage;
+                imagePreview.classList.remove('hidden');
+                error.classList.remove('show');
+            };
+            reader.onerror = () => showError('图片读取失败');
+            reader.readAsDataURL(file);
+        }
+
+        imageDropZone.addEventListener('click', () => imageFile.click());
+        imageFile.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) readImageFile(file);
+            e.target.value = '';
+        });
+
+        imageDropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            imageDropZone.classList.add('dragover');
+        });
+        imageDropZone.addEventListener('dragleave', () => {
+            imageDropZone.classList.remove('dragover');
+        });
+        imageDropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            imageDropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) readImageFile(file);
+        });
+
+        // 全局粘贴：仅在图片模式生效
+        document.addEventListener('paste', e => {
+            if (currentMode !== 'image') return;
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        readImageFile(file);
+                    }
+                    break;
+                }
+            }
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            currentImage = '';
+            previewImg.src = '';
+            imagePreview.classList.add('hidden');
+        });
+
+        checkBtn.addEventListener('click', async () => {
+            const payload = {
+                mode: currentMode,
+                provider: providerSelect.value || null,
+                model: modelSelect.value || null,
+                thinking: thinkingToggle.checked,
+            };
+
+            if (currentMode === 'text') {
+                const text = inputText.value.trim();
+                if (!text) { showError('请输入文本内容'); return; }
+                if (text.length > 5000) { showError('文本长度超过限制（最大 5000 字符）'); return; }
+                payload.text = text;
+            } else {
+                if (!currentImage) { showError('请先选择或粘贴图片'); return; }
+                payload.image = currentImage;
             }
 
             checkBtn.disabled = true;
@@ -479,12 +678,7 @@
                 const response = await fetch('/check', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        text,
-                        provider: providerSelect.value || null,
-                        model: modelSelect.value || null,
-                        thinking: thinkingToggle.checked,
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
@@ -542,10 +736,20 @@
 
         function displayResult(result) {
             if (result.format === 'json' && result.data) {
-                const { has_error, errors, optimized_text } = result.data;
+                const { has_error, errors, optimized_text, recognized_text } = result.data;
+                const isImage = currentMode === 'image';
+                const originalText = recognized_text || inputText.value;
+                const originalTitle = isImage ? '📝 图片识别原文' : '📝 原文';
 
-                if (!has_error || errors.length === 0) {
+                if (!has_error || !errors || errors.length === 0) {
+                    const recognizedSection = isImage && recognized_text
+                        ? `<div class="result-section">
+                                <h4>${originalTitle}</h4>
+                                <div class="result-content">${escapeHtml(recognized_text)}</div>
+                            </div>`
+                        : '';
                     resultContent.innerHTML = `
+                        ${recognizedSection}
                         <div class="empty-result">
                             <div class="icon">✅</div>
                             <div>未发现语法语义或拼写错误</div>
@@ -554,7 +758,7 @@
                     return;
                 }
 
-                const highlightedText = highlightErrors(inputText.value, errors);
+                const highlightedText = highlightErrors(originalText, errors);
 
                 let errorsHtml = '';
                 errors.forEach((err, index) => {
@@ -572,7 +776,7 @@
 
                 resultContent.innerHTML = `
                     <div class="result-section">
-                        <h4>📝 原文（红色标记为错误位置）</h4>
+                        <h4>${originalTitle}（红色标记为错误位置）</h4>
                         <div class="result-content">${highlightedText}</div>
                     </div>
                     <div class="result-section">

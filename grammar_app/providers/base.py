@@ -6,6 +6,43 @@ AI Provider 基类
 from abc import ABC, abstractmethod
 
 
+CHECK_LIST = """## 检查清单
+按以下维度逐项检查，不要遗漏：
+1. **拼写**：错别字、英文拼写错误、同音字混淆
+2. **语法**：主谓搭配、时态、语序、句式完整性
+3. **标点**：标点使用是否正确、中英文标点是否混用
+4. **语义**：用词是否准确、搭配是否得当、是否有歧义
+5. **格式**：中英文间空格、全半角一致性"""
+
+
+EXAMPLE = """## 示例
+
+输入："我今天去了一个很好得餐厅，the food is delicous。"
+
+输出：
+{
+  "has_error": true,
+  "errors": [
+    {
+      "error_text": "好得",
+      "correct_text": "好的",
+      "reason": "结构助词误用：修饰名词应使用「的」而非「得」"
+    },
+    {
+      "error_text": "delicous",
+      "correct_text": "delicious",
+      "reason": "英文拼写错误：缺少字母 i"
+    },
+    {
+      "error_text": "。",
+      "correct_text": ".",
+      "reason": "英文句子末尾使用了中文句号，应统一标点风格"
+    }
+  ],
+  "optimized_text": "我今天去了一个很好的餐厅，the food is delicious."
+}"""
+
+
 class BaseProvider(ABC):
     """AI 语法检查 Provider 基类"""
 
@@ -28,12 +65,14 @@ class BaseProvider(ABC):
         self.thinking_disable_params = thinking_disable_params or {}
 
     @abstractmethod
-    def check_grammar(self, text: str) -> dict:
+    def check_grammar(self, text: str = "", image: str = "") -> dict:
         """
         检查语法语义
 
         Args:
-            text: 待检查的文本
+            text: 待检查的文本（文本模式）
+            image: 图片 data URL，形如 "data:image/jpeg;base64,..."（图片模式）
+            text 与 image 二选一。
 
         Returns:
             {
@@ -59,43 +98,12 @@ class BaseProvider(ABC):
 4. 如果文本无错误，直接返回无错误结果"""
 
     def get_prompt(self, text: str) -> str:
-        """获取检查提示词，可以被子类覆盖"""
+        """文本模式提示词"""
         return f"""请检查以下文本，找出所有语法、拼写、标点和语义错误。
 
-## 检查清单
-按以下维度逐项检查，不要遗漏：
-1. **拼写**：错别字、英文拼写错误、同音字混淆
-2. **语法**：主谓搭配、时态、语序、句式完整性
-3. **标点**：标点使用是否正确、中英文标点是否混用
-4. **语义**：用词是否准确、搭配是否得当、是否有歧义
-5. **格式**：中英文间空格、全半角一致性
+{CHECK_LIST}
 
-## 示例
-
-输入："我今天去了一个很好得餐厅，the food is delicous。"
-
-输出：
-{{
-  "has_error": true,
-  "errors": [
-    {{
-      "error_text": "好得",
-      "correct_text": "好的",
-      "reason": "结构助词误用：修饰名词应使用「的」而非「得」"
-    }},
-    {{
-      "error_text": "delicous",
-      "correct_text": "delicious",
-      "reason": "英文拼写错误：缺少字母 i"
-    }},
-    {{
-      "error_text": "。",
-      "correct_text": "。",
-      "reason": "英文句子末尾使用了中文句号，应统一标点风格"
-    }}
-  ],
-  "optimized_text": "我今天去了一个很好的餐厅，the food is delicious."
-}}
+{EXAMPLE}
 
 ## 输出格式
 严格返回以下 JSON，不要包含任何其他文字：
@@ -112,10 +120,45 @@ class BaseProvider(ABC):
   "optimized_text": "修正后的完整文本"
 }}
 
-如果无错误，has_error 为 false，errors 为空数组，optimized_text 与原文相同。
+## 格式规则（重要，不得违反）
+- optimized_text 必须与下方"待检查文本"的换行和段落结构完全一致（行数、空行位置、缩进、列表分行方式全部相同），仅在原位替换错误片段，不得重排、合并或拆分段落。
+- 在 JSON 字符串中使用 \\n 表示换行；不要使用真实换行字符破坏 JSON。
+- error_text 必须是原文的精确子串（含换行前后的字符）。
+- 如果无错误，has_error 为 false，errors 为空数组，optimized_text 与原文完全相同（含换行结构）。
 
 ## 待检查文本
 {text}"""
+
+    def get_image_prompt(self) -> str:
+        """图片模式提示词：先 OCR 再按相同规则检查"""
+        return f"""请先准确识别图片中的所有文本（OCR），再对识别出的文本找出所有语法、拼写、标点和语义错误。
+
+{CHECK_LIST}
+
+{EXAMPLE}
+
+## 输出格式
+严格返回以下 JSON，不要包含任何其他文字：
+
+{{
+  "recognized_text": "从图片中识别出的完整原文",
+  "has_error": true/false,
+  "errors": [
+    {{
+      "error_text": "识别原文中错误的精确子串",
+      "correct_text": "修正后的文本",
+      "reason": "错误类型 + 具体原因"
+    }}
+  ],
+  "optimized_text": "修正后的完整文本"
+}}
+
+## 格式规则（重要，不得违反）
+- recognized_text 必须完整保留图片原文的段落与换行结构：标题、每个段落、每条列表项 / 题目选项（如 A. B. C. D.、1. 2. 3.）必须独立成行；图片中存在的空行也要保留为空行。绝对不允许把多段或多个选项合并成一行用空格分隔。
+- optimized_text 必须与 recognized_text 的换行和段落结构完全一致（行数、空行位置、缩进、列表分行方式全部相同），仅在原位替换错误片段，不得重排、合并或拆分段落。
+- 在 JSON 字符串中使用 \\n 表示换行；不要使用真实换行字符破坏 JSON。
+- error_text 必须是 recognized_text 的精确子串（含换行前后的字符）。
+- 如果无错误，has_error 为 false，errors 为空数组，optimized_text 与 recognized_text 完全相同（含换行结构）。"""
 
     def clean_json_response(self, text: str) -> str:
         """清理 markdown 代码块标记，并提取 JSON 对象"""
@@ -145,5 +188,3 @@ class BaseProvider(ABC):
             text = inner
 
         return text
-
-

@@ -11,6 +11,7 @@ env_path = os.path.join(BASE_DIR, ".env")
 load_dotenv(env_path)
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB，给图片上传留足空间
 CORS(app)
 
 
@@ -37,23 +38,36 @@ def models(provider_name):
 def check():
     """语法语义检查 API"""
     data = request.get_json()
-    if not data or "text" not in data:
-        return jsonify({"error": "缺少 text 参数"}), 400
+    if not data:
+        return jsonify({"error": "请求体为空"}), 400
 
-    text = data["text"].strip()
-    if not text:
-        return jsonify({"error": "文本不能为空"}), 400
-
-    if len(text) > 5000:
-        return jsonify({"error": "文本长度超过限制（最大 5000 字符）"}), 400
-
+    mode = data.get("mode", "text")
     provider_name = data.get("provider")
     model = data.get("model")
     thinking = bool(data.get("thinking", False))
 
+    text = ""
+    image = ""
+
+    if mode == "image":
+        image = (data.get("image") or "").strip()
+        if not image:
+            return jsonify({"error": "缺少 image 参数"}), 400
+        if not image.startswith("data:image/"):
+            return jsonify({"error": "image 必须是 data:image/... 形式的 data URL"}), 400
+        # base64 字符长度上限 ~8MB（对应原图约 5MB）
+        if len(image) > 8 * 1024 * 1024:
+            return jsonify({"error": "图片过大，请压缩后重试（建议 < 5MB）"}), 400
+    else:
+        text = (data.get("text") or "").strip()
+        if not text:
+            return jsonify({"error": "文本不能为空"}), 400
+        if len(text) > 5000:
+            return jsonify({"error": "文本长度超过限制（最大 5000 字符）"}), 400
+
     try:
         provider = create_provider(provider_name, model, thinking=thinking)
-        result = provider.check_grammar(text)
+        result = provider.check_grammar(text=text, image=image)
         return jsonify({"success": True, "result": result})
 
     except Exception as e:
