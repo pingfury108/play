@@ -125,14 +125,55 @@ def bytes_to_jpg_data_url(image_bytes: bytes) -> str:
     return f"data:image/jpeg;base64,{b64}"
 
 
+def generate_image(prompt: str) -> dict:
+    """调用图像模型生成图片，返回包含 image data URL 和 prompt 的字典。"""
+    client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
+
+    response = client.images.generate(
+        model=MODEL,
+        prompt=prompt,
+        n=1,
+    )
+
+    image_item = response.data[0]
+
+    # 获取图片原始字节
+    if image_item.b64_json:
+        raw_bytes = base64.b64decode(image_item.b64_json)
+    elif image_item.url:
+        import urllib.request
+
+        req = urllib.request.Request(
+            image_item.url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            },
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            raw_bytes = resp.read()
+    else:
+        raise Exception("模型未返回图片数据")
+
+    # 转为 JPG
+    jpg_data_url = bytes_to_jpg_data_url(raw_bytes)
+    print(f"[DEBUG] 成功生成 JPG，data URL 长度: {len(jpg_data_url)}")
+
+    return {"image": jpg_data_url, "prompt": prompt}
+
+
 @app.route("/")
 def index():
     return render_template("image_gen.html")
 
 
+@app.route("/general")
+def general_index():
+    return render_template("general_gen.html")
+
+
 @app.route("/generate", methods=["POST"])
 def generate():
-    """生成图片 API"""
+    """单词学习图片生成 API（使用默认提示词模板）"""
     if not API_KEY:
         return jsonify({"error": "API Key 未设置，请检查 .env 文件"}), 500
 
@@ -152,49 +193,62 @@ def generate():
     print(f"[DEBUG] 图像提示词: {image_prompt}")
 
     try:
-        client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-
-        response = client.images.generate(
-            model=MODEL,
-            prompt=image_prompt,
-            n=1,
-        )
-
-        image_item = response.data[0]
-
-        # 获取图片原始字节
-        if image_item.b64_json:
-            raw_bytes = base64.b64decode(image_item.b64_json)
-        elif image_item.url:
-            import urllib.request
-
-            req = urllib.request.Request(
-                image_item.url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                },
-            )
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                raw_bytes = resp.read()
-        else:
-            raise Exception("模型未返回图片数据")
-
-        # 转为 JPG
-        jpg_data_url = bytes_to_jpg_data_url(raw_bytes)
-        print(f"[DEBUG] 成功生成 JPG，data URL 长度: {len(jpg_data_url)}")
-
+        result = generate_image(image_prompt)
         return jsonify(
             {
                 "success": True,
-                "image": jpg_data_url,
+                "image": result["image"],
                 "word": parsed["word"],
-                "prompt": image_prompt,
+                "prompt": result["prompt"],
             }
         )
 
     except Exception as e:
         error_detail = traceback.format_exc()
         print(f"[GENERATE ERROR] {error_detail}")
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "detail": error_detail,
+                }
+            ),
+            500,
+        )
+
+
+@app.route("/generate-general", methods=["POST"])
+def generate_general():
+    """通用提示词图片生成 API（直接使用用户输入，不套用模板）"""
+    if not API_KEY:
+        return jsonify({"error": "API Key 未设置，请检查 .env 文件"}), 500
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体为空"}), 400
+
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify({"error": "提示词不能为空"}), 400
+
+    print(f"[DEBUG] 通用生成, 模型: {MODEL}")
+    print(f"[DEBUG] 图像提示词: {prompt}")
+
+    try:
+        result = generate_image(prompt)
+        return jsonify(
+            {
+                "success": True,
+                "image": result["image"],
+                "prompt": result["prompt"],
+            }
+        )
+
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        print(f"[GENERATE GENERAL ERROR] {error_detail}")
         return (
             jsonify(
                 {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英语单词学习图片生成</title>
+    <title>通用提示词图片生成</title>
     <style>
         * {
             margin: 0;
@@ -28,6 +28,18 @@
             font-size: 14px;
             margin-bottom: 25px;
         }
+        .nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
         .container {
             background: white;
             border-radius: 10px;
@@ -45,7 +57,7 @@
         }
         textarea {
             width: 100%;
-            min-height: 100px;
+            min-height: 160px;
             padding: 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
@@ -184,16 +196,16 @@
     </style>
 </head>
 <body>
-    <h1>📚 英语单词学习图片生成</h1>
-    <p class="subtitle">输入单词与例句，自动生成动画风格的例句场景图</p>
-    <div class="nav" style="text-align:center;margin-bottom:20px;">
-        <a href="/general" style="color:#007bff;text-decoration:none;font-size:14px;">切换到通用提示词图片生成 →</a>
+    <h1>🎨 通用提示词图片生成</h1>
+    <p class="subtitle">直接输入提示词，程序原样生成图片，不附加默认模板</p>
+    <div class="nav">
+        <a href="/">← 返回英语单词学习图片生成</a>
     </div>
     <div class="container">
         <div class="form-group">
-            <label for="prompt">单词与例句</label>
-            <textarea id="prompt" placeholder="abandon v.放弃(信念、信仰或看法);By 1930 he had abandoned his Marxist principles.1930 年时他已放弃了马克思主义信念。"></textarea>
-            <div class="hint">格式：单词 词性.释义;英文例句中文翻译</div>
+            <label for="prompt">提示词</label>
+            <textarea id="prompt" placeholder="例如：一只穿着宇航服的橘猫在月球表面弹吉他，卡通风格，色彩鲜艳"></textarea>
+            <div class="hint">提示词将直接发送给图像模型，不会被修改或套用模板</div>
         </div>
 
         <div class="btn-group">
@@ -231,7 +243,6 @@
 
     <script>
         let currentImage = null;
-        let currentWord = "";
 
         async function generateImage() {
             const prompt = document.getElementById('prompt').value.trim();
@@ -242,7 +253,7 @@
             const downloadBtn = document.getElementById('downloadBtn');
 
             if (!prompt) {
-                alert('请输入单词与例句');
+                alert('请输入提示词');
                 return;
             }
 
@@ -252,10 +263,9 @@
             result.classList.remove('show');
             downloadBtn.style.display = 'none';
             currentImage = null;
-            currentWord = "";
 
             try {
-                const res = await fetch('/generate', {
+                const res = await fetch('/generate-general', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt }),
@@ -275,13 +285,12 @@
                 }
 
                 currentImage = data.image;
-                currentWord = data.word || 'word';
 
                 const container = document.getElementById('imageContainer');
-                container.innerHTML = `<img src="${data.image}" alt="${escapeHtml(currentWord)}">`;
+                container.innerHTML = `<img src="${data.image}" alt="生成结果">`;
 
                 const info = document.getElementById('imageInfo');
-                info.innerHTML = `<strong>单词：</strong>${escapeHtml(data.word)}`;
+                info.innerHTML = `<strong>使用的提示词：</strong>${escapeHtml(data.prompt)}`;
 
                 result.classList.add('show');
                 downloadBtn.style.display = 'inline-block';
@@ -298,7 +307,7 @@
         async function downloadImage() {
             if (!currentImage) return;
 
-            const filename = `${currentWord || 'word'}_${Date.now()}.jpg`;
+            const filename = `general_${Date.now()}.jpg`;
 
             if (currentImage.startsWith('data:image/')) {
                 const a = document.createElement('a');
