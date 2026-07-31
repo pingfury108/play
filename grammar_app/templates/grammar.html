@@ -424,6 +424,11 @@
             <select id="modelSelect">
                 <option value="">请先选择提供商</option>
             </select>
+            <label>检查模式：</label>
+            <select id="checkModeSelect">
+                <option value="general">通用校对</option>
+                <option value="student">中小学语文</option>
+            </select>
             <div class="thinking-toggle">
                 <label for="thinkingToggle">思考模式</label>
                 <label class="toggle-switch">
@@ -486,6 +491,7 @@
         const modelSelect = document.getElementById('modelSelect');
         const thinkingToggle = document.getElementById('thinkingToggle');
         const noProviders = document.getElementById('noProviders');
+        const checkModeSelect = document.getElementById('checkModeSelect');
         const textPanel = document.getElementById('textPanel');
         const imagePanel = document.getElementById('imagePanel');
         const imageDropZone = document.getElementById('imageDropZone');
@@ -499,10 +505,8 @@
         let currentImage = '';
 
         const PROVIDER_NAMES = {
-            deepseek: 'DeepSeek',
-            dashscope: '阿里云百炼',
+            dashscope: '阿里云百炼 (Qwen)',
             ark: '火山云 Ark',
-            dmxapi: 'DMXAPI',
         };
 
         async function loadProviders() {
@@ -657,6 +661,7 @@
                 provider: providerSelect.value || null,
                 model: modelSelect.value || null,
                 thinking: thinkingToggle.checked,
+                check_mode: checkModeSelect.value,
             };
 
             if (currentMode === 'text') {

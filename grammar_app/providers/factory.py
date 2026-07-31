@@ -8,18 +8,6 @@ from .openai_compatible import OpenAICompatibleProvider
 
 # 厂家配置映射
 PROVIDER_CONFIG = {
-    "deepseek": {
-        "api_key_env": "DEEPSEEK_API_KEY",
-        "base_url_env": "DEEPSEEK_BASE_URL",
-        "default_base_url": "https://api.deepseek.com",
-        "model_env": "DEEPSEEK_MODEL",
-        "json_mode": True,
-        # 思考模式：切换模型到 deepseek-reasoner，无额外参数
-        "thinking_model": "deepseek-reasoner",
-        "thinking_params": {},
-        "thinking_disable_params": {},  # 模型切换方式，无需显式禁用
-        "provider_class": OpenAICompatibleProvider,
-    },
     "dashscope": {
         "api_key_env": "DASHSCOPE_API_KEY",
         "base_url_env": "DASHSCOPE_BASE_URL",
@@ -44,35 +32,16 @@ PROVIDER_CONFIG = {
         "thinking_disable_params": {"extra_body": {"thinking": {"type": "disabled"}}},
         "provider_class": OpenAICompatibleProvider,
     },
-    "dmxapi": {
-        "api_key_env": "DMXAPI_API_KEY",
-        "base_url_env": "DMXAPI_BASE_URL",
-        "default_base_url": "https://www.dmxapi.com/v1",
-        "model_env": "DMXAPI_MODEL",
-        "json_mode": True,
-        "thinking_model": None,
-        "thinking_params": {},
-        "thinking_disable_params": {},
-        "provider_class": OpenAICompatibleProvider,
-    },
 }
 
 # 各厂家可选模型列表（供前端展示）
 PROVIDER_MODELS = {
-    "deepseek": [
-        {"id": "deepseek-chat", "name": "DeepSeek Chat"},
-        {"id": "deepseek-reasoner", "name": "DeepSeek Reasoner"},
-    ],
     "dashscope": [
         {"id": "qwen3.5-flash", "name": "qwen3.5-flash"},
     ],
     "ark": [
+        {"id": "ep-20260709234540-p6n46", "name": "ep-20260709234540-p6n46"},
         {"id": "ep-20250612145622-dpwkh", "name": "ep-20250612145622-dpwkh"},
-        {"id": "doubao-seed-2-0-lite-260215", "name": "doubao-seed-2-0-lite-260215"},
-        {"id": "doubao-seed-2-0-pro-260215", "name": "doubao-seed-2-0-pro-260215"},
-    ],
-    "dmxapi": [
-        {"id": "gpt-5", "name": "GPT-5"},
     ],
 }
 
@@ -117,7 +86,7 @@ def create_provider(provider_name: str = None, model: str = None, thinking: bool
         BaseProvider 实例
     """
     if provider_name is None:
-        provider_name = os.environ.get("DEFAULT_PROVIDER", "deepseek")
+        provider_name = os.environ.get("DEFAULT_PROVIDER", "ark")
 
     if provider_name not in PROVIDER_CONFIG:
         raise ValueError(f"不支持的厂家: {provider_name}")

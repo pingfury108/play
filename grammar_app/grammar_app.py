@@ -45,6 +45,9 @@ def check():
     provider_name = data.get("provider")
     model = data.get("model")
     thinking = bool(data.get("thinking", False))
+    check_mode = data.get("check_mode", "general")
+    if check_mode not in ("general", "student"):
+        return jsonify({"error": f"不支持的检查模式: {check_mode}"}), 400
 
     text = ""
     image = ""
@@ -67,7 +70,7 @@ def check():
 
     try:
         provider = create_provider(provider_name, model, thinking=thinking)
-        result = provider.check_grammar(text=text, image=image)
+        result = provider.check_grammar(text=text, image=image, check_mode=check_mode)
         return jsonify({"success": True, "result": result})
 
     except Exception as e:
