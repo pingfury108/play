@@ -47,12 +47,16 @@ PROVIDER_MODELS = {
 
 
 def get_available_providers():
-    """获取所有已配置 API Key 的厂家列表"""
+    """获取所有已配置 API Key 的厂家列表，默认厂商排在首位"""
     available = []
     for provider_name, config in PROVIDER_CONFIG.items():
         api_key = os.environ.get(config["api_key_env"], "")
         if api_key and not api_key.startswith("your_"):
             available.append(provider_name)
+    default = os.environ.get("DEFAULT_PROVIDER", "ark")
+    if default in available:
+        available.remove(default)
+        available.insert(0, default)
     return available
 
 
