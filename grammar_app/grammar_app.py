@@ -46,7 +46,7 @@ def check():
     model = data.get("model")
     thinking = bool(data.get("thinking", False))
     check_mode = data.get("check_mode", "general")
-    if check_mode not in ("general", "student"):
+    if check_mode not in ("general", "student", "student_typo"):
         return jsonify({"error": f"不支持的检查模式: {check_mode}"}), 400
 
     text = ""

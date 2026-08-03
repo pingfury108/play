@@ -23,6 +23,9 @@ class OpenAICompatibleProvider(BaseProvider):
         if check_mode == "student":
             system_prompt = self.get_student_system_prompt()
             prompt = self.get_student_image_prompt() if image else self.get_student_prompt(text)
+        elif check_mode == "student_typo":
+            system_prompt = self.get_typo_system_prompt()
+            prompt = self.get_typo_image_prompt() if image else self.get_typo_prompt(text)
         else:
             system_prompt = self.get_system_prompt()
             prompt = self.get_image_prompt() if image else self.get_prompt(text)
